@@ -3,8 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistem Absensi GOR Premium v3.0</title>
+  <title>Sistem Absensi GOR Premium v4.0</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     body { font-family: 'Segoe UI', -apple-system, Arial, sans-serif; margin: 0; padding: 12px; background-color: #f4f6f9; color: #333; }
     .app-container { width: 100%; max-width: 450px; margin: auto; }
@@ -23,9 +24,12 @@
     #reader select { padding: 10px; font-size: 14px; border-radius: 8px; border: 1px solid #cbd5e1; margin: 8px 0; width: 100%; box-sizing: border-box; background-color: #f8fafc; }
     #reader img { display: none; }
     
-    .btn-sync { background-color: #10b981 !important; box-shadow: 0 2px 4px rgba(16,185,129,0.2) !important; margin-bottom: 12px; width: 100%; padding: 12px; font-size: 14px; font-weight: 700; color: white; border: none; border-radius: 8px; cursor: pointer; display: block; }
+    .btn-sync { background-color: #10b981 !important; box-shadow: 0 2px 4px rgba(16,185,129,0.2) !important; margin-bottom: 8px; width: 100%; padding: 12px; font-size: 14px; font-weight: 700; color: white; border: none; border-radius: 8px; cursor: pointer; display: block; }
     .btn-sync:hover { background-color: #059669 !important; }
     
+    .btn-excel { background-color: #f59e0b !important; box-shadow: 0 2px 4px rgba(245,158,11,0.2) !important; margin-bottom: 12px; width: 100%; padding: 10px; font-size: 13px; font-weight: 700; color: white; border: none; border-radius: 8px; cursor: pointer; display: block; }
+    .btn-excel:hover { background-color: #d97706 !important; }
+
     .card-info { background: white; border-radius: 16px; padding: 14px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; margin-bottom: 12px; }
     .history-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 8px; }
     .history-header h4 { margin: 0; color: #1e293b; font-size: 14px; font-weight: 600; }
@@ -42,7 +46,7 @@
 <body>
 
   <div class="app-container">
-    <h3>Kamera Absensi GOR.V2 (Hybrid Mode)</h3>
+    <h3>Kamera Absensi GOR.V4 (Hybrid Premium)</h3>
     
     <div id="status-kamera">Kamera belum aktif. Silakan klik tombol di bawah.</div>
     
@@ -50,7 +54,10 @@
       <div id="reader"></div>
     </div>
 
-    <button id="btn-sync-data" class="btn-sync" onclick="sinkronisasiDataOffline()" style="display: none;">🔄 Kirim Data Offline Ke Spreadsheet</button>
+    <div id="panel-offline-action" style="display: none;">
+      <button class="btn-excel" onclick="downloadExcelOffline()">📥 1. Backup Daftar Offline Jadi Excel (.xlsx)</button>
+      <button id="btn-sync-data" class="btn-sync" onclick="sinkronisasiDataOffline()">🔄 2. Kirim Data Offline Ke Spreadsheet</button>
+    </div>
     
     <div class="card-info" style="border-left: 4px solid #10b981;">
       <div class="history-header">
@@ -62,7 +69,7 @@
           <tr>
             <th style="width: 15%;">No</th>
             <th style="width: 35%;">Tanggal</th>
-            <th style="width: 25%;">Jam</th>
+            <th style="width: 25%;">Jam Scan</th>
             <th style="width: 25%;">ID</th>
           </tr>
         </thead>
@@ -80,7 +87,7 @@
           <tr>
             <th style="width: 15%;">No</th>
             <th style="width: 35%;">Tanggal</th>
-            <th style="width: 25%;">Jam</th>
+            <th style="width: 25%;">Jam Scan</th>
             <th style="width: 25%;">ID</th>
           </tr>
         </thead>
@@ -93,24 +100,18 @@
     let isProcessing = false;
     let html5QrcodeScanner = null;
     const statusDiv = document.getElementById('status-kamera');
+    const panelOffline = document.getElementById('panel-offline-action');
     const syncBtn = document.getElementById('btn-sync-data');
     
     const URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbxGkOYf1G1cXUJqAEkHyBh8_y0MbFRj_PK6ncAEWhu6v022mncmC-ebFxLhQGddgViyMA/exec";
 
     window.onload = function() {
         tampilkanRiwayat();
-        
-        html5QrcodeScanner = new Html5QrcodeScanner(
-            "reader", { fps: 15, qrbox: {width: 230, height: 230} }, false);
+        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 15, qrbox: {width: 230, height: 230} }, false);
         html5QrcodeScanner.render(onScanSuccess, (err) => {});
-        
-        setTimeout(() => {
-          const btnBawaan = document.getElementById('html5-qrcode-button-camera-permission');
-          if(btnBawaan) btnBawaan.innerText = "Buka Kamera Scanner";
-        }, 300);
     };
 
-function onScanSuccess(decodedText) {
+    function onScanSuccess(decodedText) {
         if (isProcessing) return;
         isProcessing = true; 
         statusDiv.className = "proses";
@@ -120,31 +121,21 @@ function onScanSuccess(decodedText) {
         let tgl = waktu.getFullYear() + '-' + (waktu.getMonth() + 1).toString().padStart(2, '0') + '-' + waktu.getDate().toString().padStart(2, '0');
         let jam = waktu.getHours().toString().padStart(2, '0') + ':' + waktu.getMinutes().toString().padStart(2, '0') + ':' + waktu.getSeconds().toString().padStart(2, '0');
 
-        // GANTI KE GET & NO-CORS AGAR JALUR PENGIRIMAN SUPER RINGAN DAN FAST RESPONS
-        fetch(URL_GOOGLE_SCRIPT + "?id=" + encodeURIComponent(decodedText), { method: 'GET', mode: 'no-cors' })
+        // PERUBAHAN UTAMA: Jam dan Tanggal disuntik langsung ke URL agar mencatat jam asli scan
+        let urlKirim = `${URL_GOOGLE_SCRIPT}?id=${encodeURIComponent(decodedText)}&tgl_scan=${tgl}&jam_scan=${jam}`;
+
+        fetch(urlKirim, { method: 'GET', mode: 'no-cors' })
         .then(() => {
             statusDiv.className = "sukses";
             statusDiv.innerText = "✅ ID " + decodedText + " Berhasil Masuk!";
-            
             simpanLokal('riwayat_sukses', tgl, jam, decodedText);
-
-            setTimeout(() => { 
-                statusDiv.className = ""; 
-                statusDiv.innerText = "📸 Siap scan berikutnya..."; 
-                isProcessing = false; 
-            }, 600); 
+            setTimeout(() => { statusDiv.className = ""; isProcessing = false; }, 600); 
         })
         .catch(err => {
             statusDiv.className = "gagal-offline";
-            statusDiv.innerText = "⚠️ INTERNET MATI/LEMOT! ID " + decodedText + " dialihkan ke Antrean Offline.";
-            
+            statusDiv.innerText = "⚠️ INTERNET MATI/LEMOT! Diselamatkan ke Offline.";
             simpanLokal('riwayat_offline', tgl, jam, decodedText);
-
-            setTimeout(() => { 
-                statusDiv.className = ""; 
-                statusDiv.innerText = "📸 Siap scan berikutnya (Mode Offline aktif)..."; 
-                isProcessing = false; 
-            }, 1500);
+            setTimeout(() => { statusDiv.className = ""; isProcessing = false; }, 1500);
         });
     }
 
@@ -163,20 +154,18 @@ function onScanSuccess(decodedText) {
         document.getElementById('count-sukses').innerText = sukses.length;
 
         if (offline.length > 0) {
-            syncBtn.style.display = "block";
-            syncBtn.innerText = `🔄 Kirim ${offline.length} Data Offline Ke Spreadsheet`;
+            panelOffline.style.display = "block";
+            syncBtn.innerText = `🔄 2. Kirim ${offline.length} Data Offline Ke Spreadsheet`;
         } else {
-            syncBtn.style.display = "none";
+            panelOffline.style.display = "none";
         }
 
-        // Render Tabel Offline
         let htmlOffline = offline.length === 0 ? `<tr><td colspan="4" style="text-align:center; color:#94a3b8;">Tidak ada data tertunda</td></tr>` : "";
         offline.forEach((item, index) => {
             htmlOffline += `<tr><td>#${offline.length - index}</td><td style="color:#64748b;">${item.tanggal}</td><td>${item.jam}</td><td style="font-weight:700; color:#ef4444;">${item.id}</td></tr>`;
         });
         document.getElementById('tabel-offline').innerHTML = htmlOffline;
 
-        // Render Tabel Sukses
         let htmlSukses = sukses.length === 0 ? `<tr><td colspan="4" style="text-align:center; color:#94a3b8;">Belum ada data sukses</td></tr>` : "";
         sukses.forEach((item, index) => {
             htmlSukses += `<tr><td>#${sukses.length - index}</td><td style="color:#64748b;">${item.tanggal}</td><td>${item.jam}</td><td style="font-weight:700; color:#10b981;">${item.id}</td></tr>`;
@@ -184,21 +173,19 @@ function onScanSuccess(decodedText) {
         document.getElementById('tabel-sukses').innerHTML = htmlSukses;
     }
 
-function sinkronisasiDataOffline() {
+    function sinkronisasiDataOffline() {
         let offline = JSON.parse(localStorage.getItem('riwayat_offline')) || [];
         if (offline.length === 0) return;
 
-        if (!confirm(`Kirim ${offline.length} data antrean offline ini ke Google Sheets sekarang? (Pastikan internet sudah lancar)`)) return;
+        if (!confirm(`Kirim ${offline.length} data antrean offline ini ke Google Sheets sekarang?`)) return;
 
         statusDiv.className = "proses";
         statusDiv.innerText = "⏳ Memulai sinkronisasi data offline...";
-        
         let totalData = offline.length;
         let suksesCounter = 0;
 
         function kirimItem() {
             let dataOfflineTerbaru = JSON.parse(localStorage.getItem('riwayat_offline')) || [];
-            
             if (dataOfflineTerbaru.length === 0) {
                 tampilkanRiwayat();
                 statusDiv.className = "sukses";
@@ -209,8 +196,10 @@ function sinkronisasiDataOffline() {
             let data = dataOfflineTerbaru[0];
             statusDiv.innerText = `⏳ Mengirim (${suksesCounter + 1}/${totalData}): ID ${data.id}...`;
 
-            // GANTI KE GET & NO-CORS JUGA DI SINI AGAR PENGIRIMAN MASSAL BERUNTUN TIDAK DIBLOK BROWSER
-            fetch(URL_GOOGLE_SCRIPT + "?id=" + encodeURIComponent(data.id), { method: 'GET', mode: 'no-cors' })
+            // MENGIRIM DENGAN JAM ASLI YANG TERCATAT DI DATA OFFLINE
+            let urlKirimOffline = `${URL_GOOGLE_SCRIPT}?id=${encodeURIComponent(data.id)}&tgl_scan=${data.tanggal}&jam_scan=${data.jam}`;
+
+            fetch(urlKirimOffline, { method: 'GET', mode: 'no-cors' })
             .then(() => {
                 let sukses = JSON.parse(localStorage.getItem('riwayat_sukses')) || [];
                 sukses.unshift(data);
@@ -221,22 +210,44 @@ function sinkronisasiDataOffline() {
                 
                 suksesCounter++;
                 tampilkanRiwayat();
-
-                // Jeda aman diturunkan ke 1 detik karena jalur GET jauh lebih enteng
                 setTimeout(kirimItem, 1000); 
             })
             .catch(err => {
                 tampilkanRiwayat();
                 statusDiv.className = "gagal-offline";
-                statusDiv.innerText = `❌ Google Sheets sibuk / internet lelet. Baru ${suksesCounter} data terkirim. Sisanya tetap aman di antrean.`;
+                statusDiv.innerText = `❌ Sinkronisasi terhenti. Sisa data aman di antrean.`;
             });
         }
-
         kirimItem();
     }
 
+    // FUNGSI SAKTI BARU: DOWNLOAD EXCEL TANPA INTERNET SAMA SEKALI
+    function downloadExcelOffline() {
+        let offline = JSON.parse(localStorage.getItem('riwayat_offline')) || [];
+        if (offline.length === 0) {
+            alert("Tidak ada data antrean offline untuk didownload.");
+            return;
+        }
+
+        // Format ulang data agar rapi di file Excel
+        let dataExcel = offline.map((item, index) => ({
+            "No": offline.length - index,
+            "Tanggal Scan": item.tanggal,
+            "Jam Scan": item.jam,
+            "ID Peserta": item.id
+        }));
+
+        let wb = XLSX.utils.book_new();
+        let ws = XLSX.utils.json_to_sheet(dataExcel);
+        XLSX.utils.book_append_sheet(wb, ws, "Backup Offline");
+        
+        // Generate file excel dengan nama unik berdasarkan waktu download
+        let namaFile = "BACKUP_OFFLINE_" + new Date().getTime() + ".xlsx";
+        XLSX.writeFile(wb, namaFile);
+    }
+
     function hapusRiwayat(tipe) {
-        let pesan = tipe === 'offline' ? "Hapus antrean offline? (Data ini BELUM masuk ke Google Sheets!)" : "Hapus daftar riwayat sukses di layar ini? (Data di Google Sheets tetap aman)";
+        let pesan = tipe === 'offline' ? "Hapus antrean offline? (Data BELUM masuk ke Google Sheets!)" : "Hapus daftar sukses di layar HP?";
         if(confirm(pesan)) {
             localStorage.removeItem(tipe === 'offline' ? 'riwayat_offline' : 'riwayat_sukses');
             tampilkanRiwayat();
