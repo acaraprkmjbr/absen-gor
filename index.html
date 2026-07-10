@@ -8,7 +8,12 @@
   <style>
     body { font-family: 'Segoe UI', -apple-system, Arial, sans-serif; margin: 0; padding: 12px; background-color: #f4f6f9; color: #333; }
     .app-container { width: 100%; max-width: 450px; margin: auto; }
-    h3 { margin: 8px 0 15px 0; font-size: 18px; color: #1e293b; font-weight: 700; text-align: center; }
+    h3 { margin: 8px 0 12px 0; font-size: 18px; color: #1e293b; font-weight: 700; text-align: center; }
+    
+    /* Status Notifikasi di Atas Kamera */
+    #status-kamera { font-size: 15px; font-weight: 700; padding: 12px; border-radius: 12px; text-align: center; background: white; color: #64748b; border: 1px dashed #cbd5e1; margin-bottom: 12px; box-sizing: border-box; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+    .sukses { background-color: #dcfce7 !important; color: #15803d !important; border: 1px solid #bbf7d0 !important; }
+    .proses { background-color: #fef9c3 !important; color: #a16207 !important; border: 1px solid #fef08a !important; }
     
     /* CARD 1: AREA KAMERA */
     .card-camera { background: white; border-radius: 16px; padding: 14px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.06); margin-bottom: 12px; border: 1px solid #e2e8f0; }
@@ -20,13 +25,8 @@
     #reader select { padding: 10px; font-size: 14px; border-radius: 8px; border: 1px solid #cbd5e1; margin: 8px 0; width: 100%; box-sizing: border-box; background-color: #f8fafc; }
     #reader img { display: none; }
     
-    /* CARD 2: NOTIFIKASI & RIWAYAT */
+    /* CARD 2: RIWAYAT DATA MASUK */
     .card-info { background: white; border-radius: 16px; padding: 14px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
-    
-    /* Status Notifikasi */
-    #status-kamera { font-size: 15px; font-weight: 700; padding: 12px; border-radius: 10px; text-align: center; background: #f8fafc; color: #64748b; border: 1px dashed #cbd5e1; margin-bottom: 12px; box-sizing: border-box; }
-    .sukses { background-color: #dcfce7 !important; color: #15803d !important; border: 1px solid #bbf7d0 !important; }
-    .proses { background-color: #fef9c3 !important; color: #a16207 !important; border: 1px solid #fef08a !important; }
     
     /* Tabel List Riwayat */
     .history-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 8px; }
@@ -44,13 +44,13 @@
   <div class="app-container">
     <h3>Kamera Absensi GOR</h3>
     
+    <div id="status-kamera">Kamera belum aktif. Silakan klik tombol di bawah.</div>
+    
     <div class="card-camera">
       <div id="reader"></div>
     </div>
     
     <div class="card-info">
-      <div id="status-kamera">Kamera belum aktif. Silakan klik tombol di atas.</div>
-      
       <div class="history-header">
         <h4>Daftar Hasil Scan (HP Ini)</h4>
         <button class="btn-clear" onclick="hapusRiwayat()">Clear</button>
@@ -74,7 +74,6 @@
     let html5QrcodeScanner = null;
     const statusDiv = document.getElementById('status-kamera');
     
-    // LINK WEB APP KELUARAN GOOGLE GO KAMU
     const URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbxGkOYf1G1cXUJqAEkHyBh8_y0MbFRj_PK6ncAEWhu6v022mncmC-ebFxLhQGddgViyMA/exec";
 
     window.onload = function() {
@@ -84,7 +83,6 @@
             "reader", { fps: 15, qrbox: {width: 230, height: 230} }, false);
         html5QrcodeScanner.render(onScanSuccess, (err) => {});
         
-        // Mengubah tulisan tombol request kamera agar lebih rapi
         setTimeout(() => {
           const btnBawaan = document.getElementById('html5-qrcode-button-camera-permission');
           if(btnBawaan) btnBawaan.innerText = "Buka Kamera Scanner";
@@ -153,7 +151,7 @@
             localStorage.removeItem('riwayat_scan');
             tampilkanRiwayat();
             statusDiv.className = "";
-            statusDiv.innerText = "Kamera siap...";
+            statusDiv.innerText = "Silakan klik tombol di bawah untuk mulai.";
         }
     }
   </script>
