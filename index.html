@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Scanner Bebas Blokir</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin: 20px; background-color: #e9ecef; }
+    #reader { width: 100%; max-width: 500px; margin: auto; border: 3px solid #007bff; border-radius: 8px; overflow: hidden; background: white; }
+    #status-kamera { margin-top: 20px; font-size: 18px; font-weight: bold; padding: 15px; border-radius: 5px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .sukses { background-color: #d4edda !important; color: #155724 !important; }
+    .proses { background-color: #fff3cd !important; color: #856404 !important; }
+  </style>
+</head>
+<body>
+  <h3>Kamera Absensi GOR (Bebas Sandbox)</h3>
+  <div id="reader"></div>
+  <div id="status-kamera">Arahkan kamera ke QR Code...</div>
+
+  <script>
+    let lastResult = null;
+    const statusDiv = document.getElementById('status-kamera');
+    
+    // GANTI TULISAN DI BAWAH INI DENGAN URL WEB APP GOOGLE KAMU YANG BERAKHIRAN /exec
+    const URL_GOOGLE_SCRIPT = "PASTE_URL_WEB_APP_KAMU_DISINI";
+
+    function onScanSuccess(decodedText) {
+        if (decodedText !== lastResult) {
+            lastResult = decodedText;
+            statusDiv.className = "proses";
+            statusDiv.innerText = "Memproses ID: " + decodedText;
+
+            // Mengirim data menggunakan metode POST murni yang lolos dari pemblokiran browser
+            fetch(URL_GOOGLE_SCRIPT + "?id=" + encodeURIComponent(decodedText), { method: 'POST' })
+            .then(response => response.text())
+            .then(text => {
+                statusDiv.className = "sukses";
+                statusDiv.innerText = text;
+                setTimeout(() => { 
+                    lastResult = null; 
+                    statusDiv.className = ""; 
+                    statusDiv.innerText = "Siap scan berikutnya..."; 
+                }, 1500);
+            })
+            .catch(err => {
+                statusDiv.innerText = "Gagal mengirim data, mencoba kembali...";
+                lastResult = null;
+            });
+        }
+    }
+
+    window.onload = function() {
+        let html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader", { fps: 15, qrbox: {width: 250, height: 250} }, false);
+        html5QrcodeScanner.render(onScanSuccess, (err) => {});
+    };
+  </script>
+</body>
+</html>
