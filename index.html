@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistem Absensi GOR Premium v4.0</title>
+  <title>Sistem Absensi QR Spreadsheets</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
@@ -46,7 +46,7 @@
 <body>
 
   <div class="app-container">
-    <h3>Kamera Absensi GOR.V2 (Hybrid Premium)</h3>
+    <h3>Kamera Absensi QR v4.0 (Hybrid)</h3>
     
     <div id="status-kamera">Kamera belum aktif. Silakan klik tombol di bawah.</div>
     
@@ -129,13 +129,13 @@
 
         let urlKirim = `${URL_GOOGLE_SCRIPT}?id=${encodeURIComponent(decodedText)}&tgl_scan=${tgl}&jam_scan=${jam}`;
 
-        // 🌟 PERBAIKAN: Buat controller untuk memaksa STOP jika internet lemot
+        // jika internet lemot
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // Batas maksimal 2000ms (5 detik)
+        const timeoutId = setTimeout(() => controller.abort(), 6000); // Batas maksimal (6 detik)
 
         fetch(urlKirim, { method: 'GET', mode: 'no-cors', signal: controller.signal })
         .then(() => {
-            clearTimeout(timeoutId); // Batalkan bom waktu karena internet lancar
+            clearTimeout(timeoutId); // Batalkan karena internet lancar
             statusDiv.className = "sukses";
             statusDiv.innerText = "✅ ID " + decodedText + " Berhasil Masuk!";
             simpanLokal('riwayat_sukses', tgl, jam, decodedText);
@@ -143,7 +143,7 @@
         })
         .catch(err => {
             clearTimeout(timeoutId);
-            // LANGSUNG DIEKSEKUSI JIKA LEBIH DARI 2 DETIK ATAU INTERNET PUTUS
+            // DIEKSEKUSI JIKA LEBIH DARI 6 DETIK ATAU INTERNET PUTUS
             statusDiv.className = "gagal-offline";
             statusDiv.innerText = "⚠️ INTERNET MATI/LEMOT!!. Data (" + decodedText + ") Tersimpan di HP pada List Antrean Offline.";
             
@@ -234,7 +234,7 @@
         kirimItem();
     }
 
-    // FUNGSI SAKTI BARU: DOWNLOAD EXCEL TANPA INTERNET SAMA SEKALI
+    // DOWNLOAD EXCEL TANPA INTERNET SAMA SEKALI
     function downloadExcelOffline() {
         let offline = JSON.parse(localStorage.getItem('riwayat_offline')) || [];
         if (offline.length === 0) {
@@ -242,7 +242,6 @@
             return;
         }
 
-        // Format ulang data agar rapi di file Excel
         let dataExcel = offline.map((item, index) => ({
             "No": offline.length - index,
             "Tanggal Scan": item.tanggal,
@@ -259,7 +258,7 @@
         XLSX.writeFile(wb, namaFile);
     }
 
-    // FUNGSI BARU: DOWNLOAD SEMUA DATA YANG MASUK KATEGORI SUKSES DI HP
+    // DOWNLOAD SEMUA DATA YANG MASUK KATEGORI SUKSES DI HP
     function downloadExcelSukses() {
         let sukses = JSON.parse(localStorage.getItem('riwayat_sukses')) || [];
         if (sukses.length === 0) {
