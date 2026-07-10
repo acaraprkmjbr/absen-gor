@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QR Scanner Bebas Blokir</title>
+  <title>QR Scanner Bebas Blokir + List History</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; text-align: center; margin: 20px; background-color: #e9ecef; }
@@ -11,6 +11,14 @@
     #status-kamera { margin-top: 20px; font-size: 18px; font-weight: bold; padding: 15px; border-radius: 5px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     .sukses { background-color: #d4edda !important; color: #155724 !important; }
     .proses { background-color: #fff3cd !important; color: #856404 !important; }
+    
+    /* Style untuk Tabel List History Scan */
+    .history-container { width: 100%; max-width: 500px; margin: 30px auto auto auto; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: left; }
+    .history-container h4 { margin-top: 0; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 5px; display: flex; justify-content: space-between; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+    th, td { padding: 8px 12px; border-bottom: 1px solid #dee2e6; text-align: left; }
+    th { background-color: #f8f9fa; font-weight: bold; }
+    .btn-clear { background: #dc3545; color: white; border: none; padding: 3px 8px; font-size: 12px; border-radius: 4px; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -18,12 +26,38 @@
   <div id="reader"></div>
   <div id="status-kamera">Arahkan kamera ke QR Code...</div>
 
+  <div class="history-container">
+    <h4>
+      <span>Daftar Hasil Scan (HP Ini)</span>
+      <button class="btn-clear" onclick="hapusRiwayat()">Clear</button>
+    </h4>
+    <table>
+      <thead>
+        <tr>
+          <th>No</th>
+          <th>Jam</th>
+          <th>ID Peserta</th>
+        </tr>
+      </thead>
+      <tbody id="tabel-history">
+        </tbody>
+    </table>
+  </div>
+
   <script>
     let lastResult = null;
     const statusDiv = document.getElementById('status-kamera');
     
-    // GANTI TULISAN DI BAWAH INI DENGAN URL WEB APP GOOGLE KAMU YANG BERAKHIRAN /exec
+    // PENTING: GANTI teks di bawah ini dengan URL Web App Google kamu yang baru saja kamu buat (yang berakhiran /exec)
     const URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbxGkOYf1G1cXUJqAEkHyBh8_y0MbFRj_PK6ncAEWhu6v022mncmC-ebFxLhQGddgViyMA/exec";
+
+    // Fungsi memuat riwayat lama saat halaman dibuka/refresh
+    window.onload = function() {
+        tampilkanRiwayat();
+        let html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader", { fps: 15, qrbox: {width: 250, height: 250} }, false);
+        html5QrcodeScanner.render(onScanSuccess, (err) => {});
+    };
 
     function onScanSuccess(decodedText) {
         if (decodedText !== lastResult) {
@@ -31,12 +65,15 @@
             statusDiv.className = "proses";
             statusDiv.innerText = "Memproses ID: " + decodedText;
 
-            // Mengirim data menggunakan metode POST murni yang lolos dari pemblokiran browser
             fetch(URL_GOOGLE_SCRIPT + "?id=" + encodeURIComponent(decodedText), { method: 'POST' })
             .then(response => response.text())
             .then(text => {
                 statusDiv.className = "sukses";
                 statusDiv.innerText = text;
+                
+                // Simpan hasil scan sukses ke list riwayat lokal HP
+                simpanKeRiwayat(decodedText);
+
                 setTimeout(() => { 
                     lastResult = null; 
                     statusDiv.className = ""; 
@@ -50,11 +87,44 @@
         }
     }
 
-    window.onload = function() {
-        let html5QrcodeScanner = new Html5QrcodeScanner(
-            "reader", { fps: 15, qrbox: {width: 250, height: 250} }, false);
-        html5QrcodeScanner.render(onScanSuccess, (err) => {});
-    };
+    // FUNGSI LOGIKA UNTUK DAFTAR LIST HISTORY
+    function simpanKeRiwayat(idPeserta) {
+        let riwayat = JSON.parse(localStorage.getItem('riwayat_scan')) || [];
+        let waktu = new Date();
+        let jamMeniDetik = waktu.getHours().toString().padStart(2, '0') + ':' + 
+                           waktu.getMinutes().toString().padStart(2, '0') + ':' + 
+                           waktu.getSeconds().toString().padStart(2, '0');
+        
+        // Masukkan data baru di posisi paling atas list
+        riwayat.unshift({ jam: jamMeniDetik, id: idPeserta });
+        localStorage.setItem('riwayat_scan', JSON.stringify(riwayat));
+        tampilkanRiwayat();
+    }
+
+    function tampilkanRiwayat() {
+        let riwayat = JSON.parse(localStorage.getItem('riwayat_scan')) || [];
+        let htmlTabel = "";
+        
+        if (riwayat.length === 0) {
+            htmlTabel = `<tr><td colspan="3" style="text-align:center; color:#999;">Belum ada data yang di-scan</td></tr>`;
+        } else {
+            riwayat.forEach((item, index) => {
+                htmlTabel += `<tr>
+                    <td>${index + 1}</td>
+                    <td>${item.jam}</td>
+                    <td style="font-weight:bold; color:#007bff;">${item.id}</td>
+                </tr>`;
+            });
+        }
+        document.getElementById('tabel-history').innerHTML = htmlTabel;
+    }
+
+    function hapusRiwayat() {
+        if(confirm("Hapus daftar riwayat scan di layar HP ini? (Data di Google Sheets tetap aman)")) {
+            localStorage.removeItem('riwayat_scan');
+            tampilkanRiwayat();
+        }
+    }
   </script>
 </body>
 </html>
