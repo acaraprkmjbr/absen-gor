@@ -253,6 +253,32 @@
         XLSX.writeFile(wb, namaFile);
     }
 
+    // FUNGSI BARU: DOWNLOAD SEMUA DATA YANG MASUK KATEGORI SUKSES DI HP
+    function downloadExcelSukses() {
+        let sukses = JSON.parse(localStorage.getItem('riwayat_sukses')) || [];
+        if (sukses.length === 0) {
+            alert("Belum ada data riwayat sukses di HP ini untuk didownload.");
+            return;
+        }
+
+        if (!confirm(`Download ${sukses.length} data riwayat sukses yang ada di HP ini menjadi file Excel?`)) return;
+
+        let dataExcel = sukses.map((item, index) => ({
+            "No": sukses.length - index,
+            "Tanggal Scan": item.tanggal,
+            "Jam Scan Asli": item.jam,
+            "ID Peserta": item.id,
+            "Status Di Layar": "SUKSES/TERKIRIM"
+        }));
+
+        let wb = XLSX.utils.book_new();
+        let ws = XLSX.utils.json_to_sheet(dataExcel);
+        XLSX.utils.book_append_sheet(wb, ws, "Backup Sukses");
+        
+        let namaFile = "BACKUP_RIWAYAT_SUKSES_" + new Date().getTime() + ".xlsx";
+        XLSX.writeFile(wb, namaFile);
+    }
+
     function hapusRiwayat(tipe) {
         let pesan = tipe === 'offline' ? "Hapus antrean offline? (Data BELUM masuk ke Google Sheets!)" : "Hapus daftar sukses di layar HP?";
         if(confirm(pesan)) {
