@@ -211,6 +211,8 @@
 
         if (!confirm(`Kirim ${offline.length} data antrean offline ini ke Google Sheets sekarang?`)) return;
 
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
         statusDiv.className = "proses";
         statusDiv.innerText = "⏳ Memulai sinkronisasi data offline...";
         let totalData = offline.length;
