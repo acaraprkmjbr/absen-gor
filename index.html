@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistem Absensi GOR Premium</title>
+  <title>Sistem Absensi GOR Premium v3.0</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
   <style>
     body { font-family: 'Segoe UI', -apple-system, Arial, sans-serif; margin: 0; padding: 12px; background-color: #f4f6f9; color: #333; }
@@ -13,6 +13,7 @@
     #status-kamera { font-size: 15px; font-weight: 700; padding: 12px; border-radius: 12px; text-align: center; background: white; color: #64748b; border: 1px dashed #cbd5e1; margin-bottom: 12px; box-sizing: border-box; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
     .sukses { background-color: #dcfce7 !important; color: #15803d !important; border: 1px solid #bbf7d0 !important; }
     .proses { background-color: #fef9c3 !important; color: #a16207 !important; border: 1px solid #fef08a !important; }
+    .gagal-offline { background-color: #fee2e2 !important; color: #991b1b !important; border: 1px solid #fca5a5 !important; }
     
     .card-camera { background: white; border-radius: 16px; padding: 14px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.06); margin-bottom: 12px; border: 1px solid #e2e8f0; }
     #reader { width: 100%; border: none !important; border-radius: 10px; overflow: hidden; background: #fafafa; }
@@ -22,7 +23,10 @@
     #reader select { padding: 10px; font-size: 14px; border-radius: 8px; border: 1px solid #cbd5e1; margin: 8px 0; width: 100%; box-sizing: border-box; background-color: #f8fafc; }
     #reader img { display: none; }
     
-    .card-info { background: white; border-radius: 16px; padding: 14px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
+    .btn-sync { background-color: #10b981 !important; box-shadow: 0 2px 4px rgba(16,185,129,0.2) !important; margin-bottom: 12px; width: 100%; padding: 12px; font-size: 14px; font-weight: 700; color: white; border: none; border-radius: 8px; cursor: pointer; display: block; }
+    .btn-sync:hover { background-color: #059669 !important; }
+    
+    .card-info { background: white; border-radius: 16px; padding: 14px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; margin-bottom: 12px; }
     .history-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 8px; }
     .history-header h4 { margin: 0; color: #1e293b; font-size: 14px; font-weight: 600; }
     .btn-clear { background: #ef4444; color: white; border: none; padding: 4px 10px; font-size: 11px; font-weight: 600; border-radius: 6px; cursor: pointer; }
@@ -31,43 +35,65 @@
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; text-align: left; }
     th { background-color: #f8fafc; color: #64748b; font-weight: 600; }
+    .badge-count { background: #cbd5e1; color: #1e293b; padding: 2px 6px; border-radius: 10px; font-size: 11px; font-weight: 700; margin-left: 6px; }
+    .badge-offline { background: #fee2e2; color: #ef4444; }
   </style>
 </head>
 <body>
 
   <div class="app-container">
-    <h3>Kamera Absensi GOR.V1</h3>
+    <h3>Kamera Absensi GOR.V3 (Hybrid Mode)</h3>
     
     <div id="status-kamera">Kamera belum aktif. Silakan klik tombol di bawah.</div>
     
     <div class="card-camera">
       <div id="reader"></div>
     </div>
+
+    <button id="btn-sync-data" class="btn-sync" onclick="sinkronisasiDataOffline()" style="display: none;">🔄 Kirim Data Offline Ke Spreadsheet</button>
     
-    <div class="card-info">
+    <div class="card-info" style="border-left: 4px solid #ef4444;">
       <div class="history-header">
-        <h4>Daftar Hasil Scan (HP Ini)</h4>
-        <button class="btn-clear" onclick="hapusRiwayat()">Clear</button>
+        <h4>⚠️ Antrean Offline (Belum Terkirim) <span id="count-offline" class="badge-count badge-offline">0</span></h4>
+        <button class="btn-clear" onclick="hapusRiwayat('offline')">Clear</button>
       </div>
       <table>
         <thead>
           <tr>
-            <th style="width: 12%;">No</th>
-            <th style="width: 28%;">Tanggal</th>
-            <th style="width: 22%;">Jam</th>
-            <th style="width: 38%;">ID Peserta</th>
+            <th style="width: 15%;">No</th>
+            <th style="width: 35%;">Tanggal</th>
+            <th style="width: 25%;">Jam</th>
+            <th style="width: 25%;">ID</th>
           </tr>
         </thead>
-        <tbody id="tabel-history">
-        </tbody>
+        <tbody id="tabel-offline"></tbody>
+      </table>
+    </div>
+
+    <div class="card-info" style="border-left: 4px solid #10b981;">
+      <div class="history-header">
+        <h4>✅ Riwayat Sukses (Sudah di Sheet) <span id="count-sukses" class="badge-count">0</span></h4>
+        <button class="btn-clear" onclick="hapusRiwayat('sukses')">Clear</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 15%;">No</th>
+            <th style="width: 35%;">Tanggal</th>
+            <th style="width: 25%;">Jam</th>
+            <th style="width: 25%;">ID</th>
+          </tr>
+        </thead>
+        <tbody id="tabel-sukses"></tbody>
       </table>
     </div>
   </div>
 
   <script>
-    let isProcessing = false; // VARIABEL PENGUNCI UTAMA
+    let isProcessing = false;
     let html5QrcodeScanner = null;
     const statusDiv = document.getElementById('status-kamera');
+    const syncBtn = document.getElementById('btn-sync-data');
     
     const URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbxGkOYf1G1cXUJqAEkHyBh8_y0MbFRj_PK6ncAEWhu6v022mncmC-ebFxLhQGddgViyMA/exec";
 
@@ -85,84 +111,142 @@
     };
 
     function onScanSuccess(decodedText) {
-        // Jika sistem sedang sibuk memproses data sebelumnya, TOLAK/ABAIKAN scan baru
         if (isProcessing) return;
-
-        isProcessing = true; // Kunci diaktifkan! Kamera berhenti merespon QR lain
+        isProcessing = true; 
         statusDiv.className = "proses";
         statusDiv.innerText = "⏳ Memproses ID: " + decodedText;
 
+        let waktu = new Date();
+        let tgl = waktu.getFullYear() + '-' + (waktu.getMonth() + 1).toString().padStart(2, '0') + '-' + waktu.getDate().toString().padStart(2, '0');
+        let jam = waktu.getHours().toString().padStart(2, '0') + ':' + waktu.getMinutes().toString().padStart(2, '0') + ':' + waktu.getSeconds().toString().padStart(2, '0');
+
+        // Coba kirim data langsung ke Google Sheets
         fetch(URL_GOOGLE_SCRIPT + "?id=" + encodeURIComponent(decodedText), { method: 'POST' })
         .then(response => response.text())
         .then(text => {
             statusDiv.className = "sukses";
             statusDiv.innerText = "✅ " + text;
             
-            simpanKeRiwayat(decodedText);
+            // Masuk ke List Sukses
+            simpanLokal('riwayat_sukses', tgl, jam, decodedText);
 
-            // OPTIMASI JEDA: Diatur ke 600ms (0.6 detik) setelah sukses.
-            // Nyaman di mata 2 panitia dan antrean 300-500 orang tetap mengalir lancar.
             setTimeout(() => { 
                 statusDiv.className = ""; 
                 statusDiv.innerText = "📸 Siap scan berikutnya..."; 
-                isProcessing = false; // KUNCI DIBUKA KEMBALI, kamera siap scan lagi
+                isProcessing = false; 
             }, 600); 
         })
         .catch(err => {
-            statusDiv.innerText = "❌ Gagal, mencoba kembali...";
-            // Jeda 1 detik sebelum membuka kunci jika error agar tidak memicu deteksi berulang-ulang
-            setTimeout(() => { isProcessing = false; }, 1000);
+            // WORST CASE: Internet mati / lelet (RTO)
+            statusDiv.className = "gagal-offline";
+            statusDiv.innerText = "⚠️ INTERNET MATI/LEMOT! ID " + decodedText + " dialihkan ke Antrean Offline.";
+            
+            // Otomatis diselamatkan masuk ke List Offline
+            simpanLokal('riwayat_offline', tgl, jam, decodedText);
+
+            setTimeout(() => { 
+                statusDiv.className = ""; 
+                statusDiv.innerText = "📸 Siap scan berikutnya (Mode Offline aktif)..."; 
+                isProcessing = false; 
+            }, 1500);
         });
     }
 
-function simpanKeRiwayat(idPeserta) {
-        let riwayat = JSON.parse(localStorage.getItem('riwayat_scan')) || [];
-        let waktu = new Date();
-        
-        // Format Tanggal (YYYY-MM-DD)
-        let tanggalSaja = waktu.getFullYear() + '-' + 
-                           (waktu.getMonth() + 1).toString().padStart(2, '0') + '-' + 
-                           waktu.getDate().toString().padStart(2, '0');
-                           
-        // Format Jam (HH:mm:ss)
-        let jamMeniDetik = waktu.getHours().toString().padStart(2, '0') + ':' + 
-                           waktu.getMinutes().toString().padStart(2, '0') + ':' + 
-                           waktu.getSeconds().toString().padStart(2, '0');
-        
-        // Simpan tiga data sekaligus ke localStorage HP
-        riwayat.unshift({ tanggal: tanggalSaja, jam: jamMeniDetik, id: idPeserta });
-        localStorage.setItem('riwayat_scan', JSON.stringify(riwayat));
+    function simpanLokal(key, tgl, jam, idPeserta) {
+        let riwayat = JSON.parse(localStorage.getItem(key)) || [];
+        riwayat.unshift({ tanggal: tgl, jam: jam, id: idPeserta });
+        localStorage.setItem(key, JSON.stringify(riwayat));
         tampilkanRiwayat();
     }
 
     function tampilkanRiwayat() {
-        let riwayat = JSON.parse(localStorage.getItem('riwayat_scan')) || [];
-        let htmlTabel = "";
-        let totalData = riwayat.length;
+        let offline = JSON.parse(localStorage.getItem('riwayat_offline')) || [];
+        let sukses = JSON.parse(localStorage.getItem('riwayat_sukses')) || [];
         
-        if (totalData === 0) {
-            htmlTabel = `<tr><td colspan="4" style="text-align:center; color:#94a3b8;">Belum ada data scan</td></tr>`;
+        document.getElementById('count-offline').innerText = offline.length;
+        document.getElementById('count-sukses').innerText = sukses.length;
+
+        // Tampilkan/Sembunyikan Tombol Sinkronisasi jika ada data offline
+        if (offline.length > 0) {
+            syncBtn.style.display = "block";
+            syncBtn.innerText = `🔄 Kirim ${offline.length} Data Offline Ke Spreadsheet`;
         } else {
-            riwayat.forEach((item, index) => {
-                let nomorAsli = totalData - index;
-                htmlTabel += `<tr>
-                    <td>#${nomorAsli}</td>
-                    <td style="color:#64748b;">${item.tanggal || '-'}</td>
-                    <td>${item.jam}</td>
-                    <td style="font-weight:700; color:#2563eb;">${item.id}</td>
-                </tr>`;
-            });
+            syncBtn.style.display = "none";
         }
-        document.getElementById('tabel-history').innerHTML = htmlTabel;
+
+        // Render Tabel Offline
+        let htmlOffline = offline.length === 0 ? `<tr><td colspan="4" style="text-align:center; color:#94a3b8;">Tidak ada data tertunda</td></tr>` : "";
+        offline.forEach((item, index) => {
+            htmlOffline += `<tr><td>#${offline.length - index}</td><td style="color:#64748b;">${item.tanggal}</td><td>${item.jam}</td><td style="font-weight:700; color:#ef4444;">${item.id}</td></tr>`;
+        });
+        document.getElementById('tabel-offline').innerHTML = htmlOffline;
+
+        // Render Tabel Sukses
+        let htmlSukses = sukses.length === 0 ? `<tr><td colspan="4" style="text-align:center; color:#94a3b8;">Belum ada data sukses</td></tr>` : "";
+        sukses.forEach((item, index) => {
+            htmlSukses += `<tr><td>#${sukses.length - index}</td><td style="color:#64748b;">${item.tanggal}</td><td>${item.jam}</td><td style="font-weight:700; color:#10b981;">${item.id}</td></tr>`;
+        });
+        document.getElementById('tabel-sukses').innerHTML = htmlSukses;
     }
 
-    function hapusRiwayat() {
-        if(confirm("Hapus daftar di layar HP ini? (Data di Google Sheets tetap aman)")) {
-            localStorage.removeItem('riwayat_scan');
+    // FUNGSI SAKTI: Mengirimkan semua data offline satu per satu ke Google Sheets saat internet sudah lancar
+    function sinkronisasiDataOffline() {
+        let offline = JSON.parse(localStorage.getItem('riwayat_offline')) || [];
+        if (offline.length === 0) return;
+
+        if (!confirm(`Kirim ${offline.length} data antrean offline ini ke Google Sheets sekarang? (Pastikan internet sudah lancar)`)) return;
+
+        statusDiv.className = "proses";
+        statusDiv.innerText = "⏳ Memulai sinkronisasi data offline...";
+        
+        let totalData = offline.length;
+        let suksesCounter = 0;
+
+        // Eksekusi pengiriman data dari antrean paling belakang secara sekuensial
+        function kirimItem(index) {
+            if (index < 0) {
+                // Selesai semua
+                localStorage.setItem('riwayat_offline', JSON.stringify([])); // Kosongkan list offline
+                tampilkanRiwayat();
+                statusDiv.className = "sukses";
+                statusDiv.innerText = `✅ SUKSES! ${suksesCounter} data offline berhasil dipindahkan ke Google Sheets.`;
+                return;
+            }
+
+            let data = offline[index];
+            statusDiv.innerText = `⏳ Mengirim (${suksesCounter + 1}/${totalData}): ID ${data.id}...`;
+
+            fetch(URL_GOOGLE_SCRIPT + "?id=" + encodeURIComponent(data.id), { method: 'POST' })
+            .then(res => res.text())
+            .then(() => {
+                // Pindahkan ke riwayat sukses lokal
+                let sukses = JSON.parse(localStorage.getItem('riwayat_sukses')) || [];
+                sukses.unshift(data);
+                localStorage.setItem('riwayat_sukses', JSON.stringify(sukses));
+                
+                suksesCounter++;
+                // Lanjut kirim data berikutnya
+                kirimItem(index - 1);
+            })
+            .catch(err => {
+                // Jika di tengah jalan internet putus lagi, stop dan simpan sisa data
+                let sisaOffline = offline.slice(0, index + 1);
+                localStorage.setItem('riwayat_offline', JSON.stringify(sisaOffline));
+                tampilkanRiwayat();
+                statusDiv.className = "gagal-offline";
+                statusDiv.innerText = `❌ Gagal ditengah jalan. Baru ${suksesCounter} data terkirim. Sisanya tetap aman di list offline.`;
+            });
+        }
+
+        // Mulai kirim dari data terlama (paling belakang array)
+        kirimItem(totalData - 1);
+    }
+
+    function hapusRiwayat(tipe) {
+        let pesan = tipe === 'offline' ? "Hapus antrean offline? (Data ini BELUM masuk ke Google Sheets!)" : "Hapus daftar riwayat sukses di layar ini? (Data di Google Sheets tetap aman)";
+        if(confirm(pesan)) {
+            localStorage.removeItem(tipe === 'offline' ? 'riwayat_offline' : 'riwayat_sukses');
             tampilkanRiwayat();
-            statusDiv.className = "";
-            statusDiv.innerText = "Silakan klik tombol di bawah untuk mulai.";
-            isProcessing = false;
         }
     }
   </script>
