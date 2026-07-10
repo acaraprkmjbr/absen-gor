@@ -46,7 +46,7 @@
 <body>
 
   <div class="app-container">
-    <h3>Kamera Absensi QR v2.0 (Hybrid)</h3>
+    <h3>Kamera Absensi QR v3.0 (Hybrid)</h3>
     
     <div id="status-kamera">Kamera belum aktif. Silakan klik tombol di bawah.</div>
     
@@ -153,7 +153,7 @@
             simpanLokal('riwayat_sukses', tgl, jam, decodedText);
             setTimeout(() => { 
                 statusDiv.className = ""; 
-                statusDiv.innerText = "📸 Siap scan peserta..."; // Sinkronisasi teks kembali normal
+                statusDiv.innerText = "📸 Siap Scan Peserta..."; // Sinkronisasi teks kembali normal
                 isProcessing = false; 
             }, 600); 
         })
@@ -165,7 +165,7 @@
             simpanLokal('riwayat_offline', tgl, jam, decodedText);
             setTimeout(() => { 
                 statusDiv.className = ""; 
-                statusDiv.innerText = "📸 Siap scan peserta (Mode Offline aktif)..."; // Sinkronisasi teks offline
+                statusDiv.innerText = "📸 Siap Scan Peserta (Mode Offline aktif)..."; // Sinkronisasi teks offline
                 isProcessing = false; 
             }, 1500);
         });
