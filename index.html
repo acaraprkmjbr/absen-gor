@@ -46,7 +46,7 @@
 <body>
 
   <div class="app-container">
-    <h3>Kamera Absensi GOR.V1 (Hybrid Premium)</h3>
+    <h3>Kamera Absensi GOR.V2 (Hybrid Premium)</h3>
     
     <div id="status-kamera">Kamera belum aktif. Silakan klik tombol di bawah.</div>
     
@@ -117,7 +117,7 @@
         html5QrcodeScanner.render(onScanSuccess, (err) => {});
     };
 
-    function onScanSuccess(decodedText) {
+  function onScanSuccess(decodedText) {
         if (isProcessing) return;
         isProcessing = true; 
         statusDiv.className = "proses";
@@ -127,17 +127,23 @@
         let tgl = waktu.getFullYear() + '-' + (waktu.getMonth() + 1).toString().padStart(2, '0') + '-' + waktu.getDate().toString().padStart(2, '0');
         let jam = waktu.getHours().toString().padStart(2, '0') + ':' + waktu.getMinutes().toString().padStart(2, '0') + ':' + waktu.getSeconds().toString().padStart(2, '0');
 
-        // PERUBAHAN UTAMA: Jam dan Tanggal disuntik langsung ke URL agar mencatat jam asli scan
         let urlKirim = `${URL_GOOGLE_SCRIPT}?id=${encodeURIComponent(decodedText)}&tgl_scan=${tgl}&jam_scan=${jam}`;
 
-        fetch(urlKirim, { method: 'GET', mode: 'no-cors' })
+        // 🌟 PERBAIKAN: Buat controller untuk memaksa STOP jika internet lemot
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // Batas maksimal 2000ms (5 detik)
+
+        fetch(urlKirim, { method: 'GET', mode: 'no-cors', signal: controller.signal })
         .then(() => {
+            clearTimeout(timeoutId); // Batalkan bom waktu karena internet lancar
             statusDiv.className = "sukses";
             statusDiv.innerText = "✅ ID " + decodedText + " Berhasil Masuk!";
             simpanLokal('riwayat_sukses', tgl, jam, decodedText);
             setTimeout(() => { statusDiv.className = ""; isProcessing = false; }, 600); 
         })
-      .catch(err => {
+        .catch(err => {
+            clearTimeout(timeoutId);
+            // LANGSUNG DIEKSEKUSI JIKA LEBIH DARI 2 DETIK ATAU INTERNET PUTUS
             statusDiv.className = "gagal-offline";
             statusDiv.innerText = "⚠️ INTERNET MATI/LEMOT!!. Data (" + decodedText + ") Tersimpan di HP pada List Antrean Offline.";
             
