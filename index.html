@@ -42,7 +42,7 @@
 <body>
 
   <div class="app-container">
-    <h3>Kamera Absensi GOR.V1 (Hybrid Mode)</h3>
+    <h3>Kamera Absensi GOR.V2 (Hybrid Mode)</h3>
     
     <div id="status-kamera">Kamera belum aktif. Silakan klik tombol di bawah.</div>
     
@@ -110,7 +110,7 @@
         }, 300);
     };
 
-    function onScanSuccess(decodedText) {
+function onScanSuccess(decodedText) {
         if (isProcessing) return;
         isProcessing = true; 
         statusDiv.className = "proses";
@@ -120,11 +120,11 @@
         let tgl = waktu.getFullYear() + '-' + (waktu.getMonth() + 1).toString().padStart(2, '0') + '-' + waktu.getDate().toString().padStart(2, '0');
         let jam = waktu.getHours().toString().padStart(2, '0') + ':' + waktu.getMinutes().toString().padStart(2, '0') + ':' + waktu.getSeconds().toString().padStart(2, '0');
 
-        fetch(URL_GOOGLE_SCRIPT + "?id=" + encodeURIComponent(decodedText), { method: 'POST' })
-        .then(response => response.text())
-        .then(text => {
+        // GANTI KE GET & NO-CORS AGAR JALUR PENGIRIMAN SUPER RINGAN DAN FAST RESPONS
+        fetch(URL_GOOGLE_SCRIPT + "?id=" + encodeURIComponent(decodedText), { method: 'GET', mode: 'no-cors' })
+        .then(() => {
             statusDiv.className = "sukses";
-            statusDiv.innerText = "✅ " + text;
+            statusDiv.innerText = "✅ ID " + decodedText + " Berhasil Masuk!";
             
             simpanLokal('riwayat_sukses', tgl, jam, decodedText);
 
@@ -209,24 +209,21 @@ function sinkronisasiDataOffline() {
             let data = dataOfflineTerbaru[0];
             statusDiv.innerText = `⏳ Mengirim (${suksesCounter + 1}/${totalData}): ID ${data.id}...`;
 
-            fetch(URL_GOOGLE_SCRIPT + "?id=" + encodeURIComponent(data.id), { method: 'POST' })
-            .then(res => res.text())
+            // GANTI KE GET & NO-CORS JUGA DI SINI AGAR PENGIRIMAN MASSAL BERUNTUN TIDAK DIBLOK BROWSER
+            fetch(URL_GOOGLE_SCRIPT + "?id=" + encodeURIComponent(data.id), { method: 'GET', mode: 'no-cors' })
             .then(() => {
-                // 1. Pindahkan data sukses ke riwayat sukses lokal
                 let sukses = JSON.parse(localStorage.getItem('riwayat_sukses')) || [];
                 sukses.unshift(data);
                 localStorage.setItem('riwayat_sukses', JSON.stringify(sukses));
                 
-                // 2. Hapus data teratas dari antrean offline
                 dataOfflineTerbaru.shift(); 
                 localStorage.setItem('riwayat_offline', JSON.stringify(dataOfflineTerbaru));
                 
                 suksesCounter++;
                 tampilkanRiwayat();
 
-                // 🌟 PERBAIKAN UTAMA: Beri jeda 1800 milidetik (1.8 detik) sebelum mengirim data berikutnya
-                // Ini memberi waktu bagi Google Sheets untuk menyelesaikan proses "LockService" data sebelumnya
-                setTimeout(kirimItem, 1800); 
+                // Jeda aman diturunkan ke 1 detik karena jalur GET jauh lebih enteng
+                setTimeout(kirimItem, 1000); 
             })
             .catch(err => {
                 tampilkanRiwayat();
