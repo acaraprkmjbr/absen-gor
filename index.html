@@ -58,9 +58,9 @@
       <table>
         <thead>
           <tr>
-            <th style="width: 15%;">No</th>
-            <th style="width: 30%;">Jam</th>
-            <th style="width: 55%;">ID Peserta</th>
+            <th style="width: 18%;">No</th>
+            <th style="width: 32%;">Jam</th>
+            <th style="width: 50%;">ID Peserta</th>
           </tr>
         </thead>
         <tbody id="tabel-history">
@@ -131,13 +131,16 @@
     function tampilkanRiwayat() {
         let riwayat = JSON.parse(localStorage.getItem('riwayat_scan')) || [];
         let htmlTabel = "";
+        let totalData = riwayat.length;
         
-        if (riwayat.length === 0) {
+        if (totalData === 0) {
             htmlTabel = `<tr><td colspan="3" style="text-align:center; color:#94a3b8;">Belum ada data scan</td></tr>`;
         } else {
             riwayat.forEach((item, index) => {
+                // LOGIKA FLIP NOMOR UTURAN: Total Data dikurangi index saat ini
+                let nomorAsli = totalData - index;
                 htmlTabel += `<tr>
-                    <td>${index + 1}</td>
+                    <td>#${nomorAsli}</td>
                     <td>${item.jam}</td>
                     <td style="font-weight:700; color:#2563eb;">${item.id}</td>
                 </tr>`;
