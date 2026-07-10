@@ -184,7 +184,7 @@
         document.getElementById('tabel-sukses').innerHTML = htmlSukses;
     }
 
-    function sinkronisasiDataOffline() {
+function sinkronisasiDataOffline() {
         let offline = JSON.parse(localStorage.getItem('riwayat_offline')) || [];
         if (offline.length === 0) return;
 
@@ -196,38 +196,51 @@
         let totalData = offline.length;
         let suksesCounter = 0;
 
-        function kirimItem(index) {
-            if (index < 0) {
-                localStorage.setItem('riwayat_offline', JSON.stringify([])); 
+        // PERBAIKAN: Menguras data dari urutan paling atas (index 0) secara konsisten
+        function kirimItem() {
+            // Ambil lagi data offline terbaru dari memori
+            let dataOfflineTerbaru = JSON.parse(localStorage.getItem('riwayat_offline')) || [];
+            
+            // Jika data offline sudah habis terkirim semua
+            if (dataOfflineTerbaru.length === 0) {
                 tampilkanRiwayat();
                 statusDiv.className = "sukses";
-                statusDiv.innerText = `✅ SUKSES! ${suksesCounter} data offline berhasil dipindahkan ke Google Sheets.`;
+                statusDiv.innerText = `✅ SUKSES! Semua data offline (${suksesCounter}) berhasil dipindahkan ke Google Sheets.`;
                 return;
             }
 
-            let data = offline[index];
+            // Ambil data yang paling atas (index 0) untuk dikirim
+            let data = dataOfflineTerbaru[0];
             statusDiv.innerText = `⏳ Mengirim (${suksesCounter + 1}/${totalData}): ID ${data.id}...`;
 
             fetch(URL_GOOGLE_SCRIPT + "?id=" + encodeURIComponent(data.id), { method: 'POST' })
             .then(res => res.text())
             .then(() => {
+                // 1. Pindahkan data yang sukses ini ke riwayat sukses lokal
                 let sukses = JSON.parse(localStorage.getItem('riwayat_sukses')) || [];
                 sukses.unshift(data);
                 localStorage.setItem('riwayat_sukses', JSON.stringify(sukses));
                 
+                // 2. HAPUS data index 0 yang sudah sukses tadi dari antrean offline
+                dataOfflineTerbaru.shift(); 
+                localStorage.setItem('riwayat_offline', JSON.stringify(dataOfflineTerbaru));
+                
                 suksesCounter++;
-                kirimItem(index - 1);
+                tampilkanRiwayat();
+
+                // 3. PANGGIL ULANG dirinya sendiri untuk mengirim sisa data berikutnya (Antrean maju ke depan)
+                setTimeout(kirimItem, 300); // jeda 0.3 detik agar tidak terlalu beruntun
             })
             .catch(err => {
-                let sisaOffline = offline.slice(0, index + 1);
-                localStorage.setItem('riwayat_offline', JSON.stringify(sisaOffline));
+                // Jika di tengah jalan internet putus lagi, stop prosesnya
                 tampilkanRiwayat();
                 statusDiv.className = "gagal-offline";
-                statusDiv.innerText = `❌ Gagal ditengah jalan. Baru ${suksesCounter} data terkirim. Sisanya tetap aman di list offline.`;
+                statusDiv.innerText = `❌ Internet putus lagi! Baru ${suksesCounter} data terkirim. Sisanya tetap aman di antrean offline.`;
             });
         }
 
-        kirimItem(totalData - 1);
+        // Mulai kirim antrean pertama
+        kirimItem();
     }
 
     function hapusRiwayat(tipe) {
