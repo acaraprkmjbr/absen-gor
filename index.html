@@ -102,7 +102,7 @@
     </div>
   </div>
 
-  <script>
+<script>
     let isProcessing = false;
     let html5QrcodeScanner = null;
     const statusDiv = document.getElementById('status-kamera');
@@ -113,11 +113,24 @@
 
     window.onload = function() {
         tampilkanRiwayat();
-        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 15, qrbox: {width: 230, height: 230} }, false);
-        html5QrcodeScanner.render(onScanSuccess, (err) => {});
+        
+        // PERBAIKAN: Menggunakan konfigurasi object yang mendukung pemantauan state kamera
+        html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
+            fps: 15, 
+            qrbox: {width: 230, height: 230},
+            rememberLastUsedCamera: true
+        }, false);
+        
+        html5QrcodeScanner.render(onScanSuccess, (err) => {
+            // Callback ketika stream kamera mendeteksi frame gambar (kamera sukses menyala)
+            if (statusDiv.innerText === "Kamera belum aktif. Silakan klik tombol di bawah." && !isProcessing) {
+                statusDiv.className = "";
+                statusDiv.innerText = "📸 Siap scan peserta...";
+            }
+        });
     };
 
-  function onScanSuccess(decodedText) {
+    function onScanSuccess(decodedText) {
         if (isProcessing) return;
         isProcessing = true; 
         statusDiv.className = "proses";
@@ -129,26 +142,32 @@
 
         let urlKirim = `${URL_GOOGLE_SCRIPT}?id=${encodeURIComponent(decodedText)}&tgl_scan=${tgl}&jam_scan=${jam}`;
 
-        // jika internet lemot
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 6000); // Batas maksimal (6 detik)
 
         fetch(urlKirim, { method: 'GET', mode: 'no-cors', signal: controller.signal })
         .then(() => {
-            clearTimeout(timeoutId); // Batalkan karena internet lancar
+            clearTimeout(timeoutId); 
             statusDiv.className = "sukses";
             statusDiv.innerText = "✅ ID " + decodedText + " Berhasil Masuk!";
             simpanLokal('riwayat_sukses', tgl, jam, decodedText);
-            setTimeout(() => { statusDiv.className = ""; isProcessing = false; }, 600); 
+            setTimeout(() => { 
+                statusDiv.className = ""; 
+                statusDiv.innerText = "📸 Siap scan peserta..."; // Sinkronisasi teks kembali normal
+                isProcessing = false; 
+            }, 600); 
         })
         .catch(err => {
             clearTimeout(timeoutId);
-            // DIEKSEKUSI JIKA LEBIH DARI 6 DETIK ATAU INTERNET PUTUS
             statusDiv.className = "gagal-offline";
             statusDiv.innerText = "⚠️ INTERNET MATI/LEMOT!!. Data (" + decodedText + ") Tersimpan di HP pada List Antrean Offline.";
             
             simpanLokal('riwayat_offline', tgl, jam, decodedText);
-            setTimeout(() => { statusDiv.className = ""; isProcessing = false; }, 1500);
+            setTimeout(() => { 
+                statusDiv.className = ""; 
+                statusDiv.innerText = "📸 Siap scan peserta (Mode Offline aktif)..."; // Sinkronisasi teks offline
+                isProcessing = false; 
+            }, 1500);
         });
     }
 
@@ -203,13 +222,16 @@
                 tampilkanRiwayat();
                 statusDiv.className = "sukses";
                 statusDiv.innerText = `✅ SUKSES! Semua data offline (${suksesCounter}) berhasil dipindahkan ke Google Sheets.`;
+                setTimeout(() => {
+                    statusDiv.className = "";
+                    statusDiv.innerText = "📸 Siap scan peserta...";
+                }, 2000);
                 return;
             }
 
             let data = dataOfflineTerbaru[0];
             statusDiv.innerText = `⏳ Mengirim (${suksesCounter + 1}/${totalData}): ID ${data.id}...`;
 
-            // MENGIRIM DENGAN JAM ASLI YANG TERCATAT DI DATA OFFLINE
             let urlKirimOffline = `${URL_GOOGLE_SCRIPT}?id=${encodeURIComponent(data.id)}&tgl_scan=${data.tanggal}&jam_scan=${data.jam}`;
 
             fetch(urlKirimOffline, { method: 'GET', mode: 'no-cors' })
@@ -234,7 +256,6 @@
         kirimItem();
     }
 
-    // DOWNLOAD EXCEL TANPA INTERNET SAMA SEKALI
     function downloadExcelOffline() {
         let offline = JSON.parse(localStorage.getItem('riwayat_offline')) || [];
         if (offline.length === 0) {
@@ -252,13 +273,10 @@
         let wb = XLSX.utils.book_new();
         let ws = XLSX.utils.json_to_sheet(dataExcel);
         XLSX.utils.book_append_sheet(wb, ws, "Backup Offline");
-        
-        // Generate file excel dengan nama unik berdasarkan waktu download
         let namaFile = "BACKUP_OFFLINE_" + new Date().getTime() + ".xlsx";
         XLSX.writeFile(wb, namaFile);
     }
 
-    // DOWNLOAD SEMUA DATA YANG MASUK KATEGORI SUKSES DI HP
     function downloadExcelSukses() {
         let sukses = JSON.parse(localStorage.getItem('riwayat_sukses')) || [];
         if (sukses.length === 0) {
@@ -279,7 +297,6 @@
         let wb = XLSX.utils.book_new();
         let ws = XLSX.utils.json_to_sheet(dataExcel);
         XLSX.utils.book_append_sheet(wb, ws, "Backup Sukses");
-        
         let namaFile = "BACKUP_RIWAYAT_SUKSES_" + new Date().getTime() + ".xlsx";
         XLSX.writeFile(wb, namaFile);
     }
