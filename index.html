@@ -3,40 +3,56 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QR Scanner Bebas Blokir + List History</title>
+  <title>QR Scanner Premium</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin: 20px; background-color: #e9ecef; }
-    #reader { width: 100%; max-width: 500px; margin: auto; border: 3px solid #007bff; border-radius: 8px; overflow: hidden; background: white; }
-    #status-kamera { margin-top: 20px; font-size: 18px; font-weight: bold; padding: 15px; border-radius: 5px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    .sukses { background-color: #d4edda !important; color: #155724 !important; }
-    .proses { background-color: #fff3cd !important; color: #856404 !important; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; text-align: center; margin: 0; padding: 20px; background-color: #f1f3f5; color: #333; }
+    h3 { margin-top: 10px; color: #212529; font-size: 20px; }
     
-    /* Style untuk Tabel List History Scan */
-    .history-container { width: 100%; max-width: 500px; margin: 30px auto auto auto; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: left; }
-    .history-container h4 { margin-top: 0; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 5px; display: flex; justify-content: space-between; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-    th, td { padding: 8px 12px; border-bottom: 1px solid #dee2e6; text-align: left; }
-    th { background-color: #f8f9fa; font-weight: bold; }
-    .btn-clear { background: #dc3545; color: white; border: none; padding: 3px 8px; font-size: 12px; border-radius: 4px; cursor: pointer; }
+    /* Box Utama Kamera */
+    #reader { width: 100%; max-width: 480px; margin: auto; border: none; border-radius: 12px; overflow: hidden; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    
+    /* Merapikan Tombol & Dropdown Bawaan Scanner Agar Tidak Numpuk */
+    #reader button { background-color: #007bff; color: white; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; border-radius: 6px; cursor: pointer; margin: 8px 4px; display: inline-block; transition: background 0.2s; }
+    #reader button:hover { background-color: #0056b3; }
+    #reader select { padding: 8px 12px; font-size: 14px; border-radius: 6px; border: 1px solid #ced4da; margin: 8px auto; max-width: 90%; display: block; }
+    #reader img { display: none; } /* Menyembunyikan ikon bawaan yang bikin sempit */
+    
+    /* Status Bar di Bawah Kamera */
+    #status-kamera { width: 100%; max-width: 450px; margin: 15px auto; font-size: 16px; font-weight: bold; padding: 12px; border-radius: 8px; background: white; box-shadow: 0 2px 6px rgba(0,0,0,0.05); box-sizing: border-box; }
+    .sukses { background-color: #d4edda !important; color: #155724 !important; border: 1px solid #c3e6cb; }
+    .proses { background-color: #fff3cd !important; color: #856404 !important; border: 1px solid #ffeeba; }
+    
+    /* Tabel List History Scan */
+    .history-container { width: 100%; max-width: 480px; margin: 25px auto; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); text-align: left; box-sizing: border-box; }
+    .history-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #007bff; padding-bottom: 8px; margin-bottom: 10px; }
+    .history-header h4 { margin: 0; color: #212529; font-size: 16px; }
+    
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid #eee; text-align: left; }
+    th { background-color: #f8f9fa; color: #495057; font-weight: 600; }
+    
+    /* Tombol-tombol Variasi */
+    .btn-clear { background: #dc3545; color: white; border: none; padding: 5px 12px; font-size: 12px; font-weight: bold; border-radius: 4px; cursor: pointer; }
+    .btn-clear:hover { background: #bd2130; }
   </style>
 </head>
 <body>
-  <h3>Kamera Absensi GOR (Bebas Sandbox)</h3>
+  <h3>Kamera Absensi GOR</h3>
   <div id="reader"></div>
   <div id="status-kamera">Arahkan kamera ke QR Code...</div>
 
   <div class="history-container">
-    <h4>
-      <span>Daftar Hasil Scan (HP Ini)</span>
+    <div class="history-header">
+      <h4>Daftar Hasil Scan (HP Ini)</h4>
       <button class="btn-clear" onclick="hapusRiwayat()">Clear</button>
-    </h4>
+    </div>
     <table>
       <thead>
         <tr>
-          <th>No</th>
-          <th>Jam</th>
-          <th>ID Peserta</th>
+          <th style="width: 15%;">No</th>
+          <th style="width: 30%;">Jam</th>
+          <th style="width: 55%;">ID Peserta</th>
         </tr>
       </thead>
       <tbody id="tabel-history">
@@ -48,10 +64,9 @@
     let lastResult = null;
     const statusDiv = document.getElementById('status-kamera');
     
-    // PENTING: GANTI teks di bawah ini dengan URL Web App Google kamu yang baru saja kamu buat (yang berakhiran /exec)
+    // PENTING: JANGAN LUPA ganti pakai URL /exec Web App Google kamu yang aktif
     const URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbxGkOYf1G1cXUJqAEkHyBh8_y0MbFRj_PK6ncAEWhu6v022mncmC-ebFxLhQGddgViyMA/exec";
 
-    // Fungsi memuat riwayat lama saat halaman dibuka/refresh
     window.onload = function() {
         tampilkanRiwayat();
         let html5QrcodeScanner = new Html5QrcodeScanner(
@@ -71,14 +86,14 @@
                 statusDiv.className = "sukses";
                 statusDiv.innerText = text;
                 
-                // Simpan hasil scan sukses ke list riwayat lokal HP
                 simpanKeRiwayat(decodedText);
 
+                // Kecepatan scan disetel ke 0.8 detik biar antrean panitia lebih ngebut
                 setTimeout(() => { 
                     lastResult = null; 
                     statusDiv.className = ""; 
                     statusDiv.innerText = "Siap scan berikutnya..."; 
-                }, 1500);
+                }, 800);
             })
             .catch(err => {
                 statusDiv.innerText = "Gagal mengirim data, mencoba kembali...";
@@ -87,7 +102,6 @@
         }
     }
 
-    // FUNGSI LOGIKA UNTUK DAFTAR LIST HISTORY
     function simpanKeRiwayat(idPeserta) {
         let riwayat = JSON.parse(localStorage.getItem('riwayat_scan')) || [];
         let waktu = new Date();
@@ -95,7 +109,6 @@
                            waktu.getMinutes().toString().padStart(2, '0') + ':' + 
                            waktu.getSeconds().toString().padStart(2, '0');
         
-        // Masukkan data baru di posisi paling atas list
         riwayat.unshift({ jam: jamMeniDetik, id: idPeserta });
         localStorage.setItem('riwayat_scan', JSON.stringify(riwayat));
         tampilkanRiwayat();
@@ -106,7 +119,7 @@
         let htmlTabel = "";
         
         if (riwayat.length === 0) {
-            htmlTabel = `<tr><td colspan="3" style="text-align:center; color:#999;">Belum ada data yang di-scan</td></tr>`;
+            htmlTabel = `<tr><td colspan="3" style="text-align:center; color:#999;">Belum ada data</td></tr>`;
         } else {
             riwayat.forEach((item, index) => {
                 htmlTabel += `<tr>
@@ -120,7 +133,7 @@
     }
 
     function hapusRiwayat() {
-        if(confirm("Hapus daftar riwayat scan di layar HP ini? (Data di Google Sheets tetap aman)")) {
+        if(confirm("Hapus daftar di layar HP ini? (Data di Google Sheets tetap aman)")) {
             localStorage.removeItem('riwayat_scan');
             tampilkanRiwayat();
         }
