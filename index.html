@@ -3,32 +3,26 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistem Absensi QR Spreedsheet</title>
+  <title>Sistem Absensi GOR Premium</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
   <style>
     body { font-family: 'Segoe UI', -apple-system, Arial, sans-serif; margin: 0; padding: 12px; background-color: #f4f6f9; color: #333; }
     .app-container { width: 100%; max-width: 450px; margin: auto; }
     h3 { margin: 8px 0 12px 0; font-size: 18px; color: #1e293b; font-weight: 700; text-align: center; }
     
-    /* Status Notifikasi di Atas Kamera */
     #status-kamera { font-size: 15px; font-weight: 700; padding: 12px; border-radius: 12px; text-align: center; background: white; color: #64748b; border: 1px dashed #cbd5e1; margin-bottom: 12px; box-sizing: border-box; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
     .sukses { background-color: #dcfce7 !important; color: #15803d !important; border: 1px solid #bbf7d0 !important; }
     .proses { background-color: #fef9c3 !important; color: #a16207 !important; border: 1px solid #fef08a !important; }
     
-    /* CARD 1: AREA KAMERA */
     .card-camera { background: white; border-radius: 16px; padding: 14px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.06); margin-bottom: 12px; border: 1px solid #e2e8f0; }
     #reader { width: 100%; border: none !important; border-radius: 10px; overflow: hidden; background: #fafafa; }
     
-    /* Custom Tombol & Pilihan Kamera Library */
     #reader button, .btn-utama { background-color: #2563eb; color: white; border: none; padding: 11px 20px; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; margin: 6px 2px; width: 100%; display: block; box-sizing: border-box; box-shadow: 0 2px 4px rgba(37,99,235,0.2); transition: all 0.2s; }
     #reader button:hover, .btn-utama:hover { background-color: #1d4ed8; }
     #reader select { padding: 10px; font-size: 14px; border-radius: 8px; border: 1px solid #cbd5e1; margin: 8px 0; width: 100%; box-sizing: border-box; background-color: #f8fafc; }
     #reader img { display: none; }
     
-    /* CARD 2: RIWAYAT DATA MASUK */
     .card-info { background: white; border-radius: 16px; padding: 14px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
-    
-    /* Tabel List Riwayat */
     .history-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 8px; }
     .history-header h4 { margin: 0; color: #1e293b; font-size: 14px; font-weight: 600; }
     .btn-clear { background: #ef4444; color: white; border: none; padding: 4px 10px; font-size: 11px; font-weight: 600; border-radius: 6px; cursor: pointer; }
@@ -42,7 +36,7 @@
 <body>
 
   <div class="app-container">
-    <h3>Kamera Absensi QR.V1</h3>
+    <h3>Kamera Absensi GOR.V2</h3>
     
     <div id="status-kamera">Kamera belum aktif. Silakan klik tombol di bawah.</div>
     
@@ -70,7 +64,7 @@
   </div>
 
   <script>
-    let lastResult = null;
+    let isProcessing = false; // VARIABEL PENGUNCI UTAMA
     let html5QrcodeScanner = null;
     const statusDiv = document.getElementById('status-kamera');
     
@@ -90,30 +84,32 @@
     };
 
     function onScanSuccess(decodedText) {
-        if (decodedText !== lastResult) {
-            lastResult = decodedText;
-            statusDiv.className = "proses";
-            statusDiv.innerText = "⏳ Memproses ID: " + decodedText;
+        // Jika sistem sedang sibuk memproses data sebelumnya, TOLAK/ABAIKAN scan baru
+        if (isProcessing) return;
 
-            fetch(URL_GOOGLE_SCRIPT + "?id=" + encodeURIComponent(decodedText), { method: 'POST' })
-            .then(response => response.text())
-            .then(text => {
-                statusDiv.className = "sukses";
-                statusDiv.innerText = "✅ " + text;
-                
-                simpanKeRiwayat(decodedText);
+        isProcessing = true; // Kunci diaktifkan! Kamera berhenti merespon QR lain
+        statusDiv.className = "proses";
+        statusDiv.innerText = "⏳ Memproses ID: " + decodedText;
 
-                setTimeout(() => { 
-                    lastResult = null; 
-                    statusDiv.className = ""; 
-                    statusDiv.innerText = "📸 Siap scan berikutnya..."; 
-                }, 800);
-            })
-            .catch(err => {
-                statusDiv.innerText = "❌ Gagal, mencoba kembali...";
-                lastResult = null;
-            });
-        }
+        fetch(URL_GOOGLE_SCRIPT + "?id=" + encodeURIComponent(decodedText), { method: 'POST' })
+        .then(response => response.text())
+        .then(text => {
+            statusDiv.className = "sukses";
+            statusDiv.innerText = "✅ " + text;
+            
+            simpanKeRiwayat(decodedText);
+
+            // Berikan jeda sejenak agar panitia bisa melihat status sukses
+            setTimeout(() => { 
+                statusDiv.className = ""; 
+                statusDiv.innerText = "📸 Siap scan berikutnya..."; 
+                isProcessing = false; // KUNCI DIBUKA KEMBALI, kamera siap scan lagi
+            }, 1200); // Waktu tunggu dipatok 1.2 detik setelah sukses biar pas
+        })
+        .catch(err => {
+            statusDiv.innerText = "❌ Gagal, mencoba kembali...";
+            isProcessing = false; // Buka kunci jika error agar bisa coba lagi
+        });
     }
 
     function simpanKeRiwayat(idPeserta) {
@@ -137,7 +133,6 @@
             htmlTabel = `<tr><td colspan="3" style="text-align:center; color:#94a3b8;">Belum ada data scan</td></tr>`;
         } else {
             riwayat.forEach((item, index) => {
-                // LOGIKA FLIP NOMOR UTURAN: Total Data dikurangi index saat ini
                 let nomorAsli = totalData - index;
                 htmlTabel += `<tr>
                     <td>#${nomorAsli}</td>
@@ -155,6 +150,7 @@
             tampilkanRiwayat();
             statusDiv.className = "";
             statusDiv.innerText = "Silakan klik tombol di bawah untuk mulai.";
+            isProcessing = false;
         }
     }
   </script>
