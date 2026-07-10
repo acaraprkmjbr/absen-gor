@@ -131,9 +131,10 @@
             simpanLokal('riwayat_sukses', tgl, jam, decodedText);
             setTimeout(() => { statusDiv.className = ""; isProcessing = false; }, 600); 
         })
-        .catch(err => {
+      .catch(err => {
             statusDiv.className = "gagal-offline";
-            statusDiv.innerText = "⚠️ INTERNET MATI/LEMOT! Diselamatkan ke Offline.";
+            statusDiv.innerText = "⚠️ INTERNET MATI/LEMOT!!. Data (" + decodedText + ") Tersimpan di HP pada List Antrean Offline.";
+            
             simpanLokal('riwayat_offline', tgl, jam, decodedText);
             setTimeout(() => { statusDiv.className = ""; isProcessing = false; }, 1500);
         });
