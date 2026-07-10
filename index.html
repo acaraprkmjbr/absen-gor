@@ -99,16 +99,18 @@
             
             simpanKeRiwayat(decodedText);
 
-            // Berikan jeda sejenak agar panitia bisa melihat status sukses
+            // OPTIMASI JEDA: Diatur ke 600ms (0.6 detik) setelah sukses.
+            // Nyaman di mata 2 panitia dan antrean 300-500 orang tetap mengalir lancar.
             setTimeout(() => { 
                 statusDiv.className = ""; 
                 statusDiv.innerText = "📸 Siap scan berikutnya..."; 
                 isProcessing = false; // KUNCI DIBUKA KEMBALI, kamera siap scan lagi
-            }, 1200); // Waktu tunggu dipatok 1.2 detik setelah sukses biar pas
+            }, 600); 
         })
         .catch(err => {
             statusDiv.innerText = "❌ Gagal, mencoba kembali...";
-            isProcessing = false; // Buka kunci jika error agar bisa coba lagi
+            // Jeda 1 detik sebelum membuka kunci jika error agar tidak memicu deteksi berulang-ulang
+            setTimeout(() => { isProcessing = false; }, 1000);
         });
     }
 
