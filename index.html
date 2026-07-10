@@ -143,7 +143,7 @@
         let urlKirim = `${URL_GOOGLE_SCRIPT}?id=${encodeURIComponent(decodedText)}&tgl_scan=${tgl}&jam_scan=${jam}`;
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000); // Batas maksimal (6 detik)
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // Batas maksimal (10 detik)
 
         fetch(urlKirim, { method: 'GET', mode: 'no-cors', signal: controller.signal })
         .then(() => {
